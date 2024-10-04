@@ -51,6 +51,16 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Add custom CSS to hide the 'More options' menu
+hide_menu_style = """
+        <style>
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        footer {visibility: hidden;}
+        </style>
+        """
+st.markdown(hide_menu_style, unsafe_allow_html=True)
+
 
 # --- Header ---
 # st.html("""<h2 style="text-align: center;">📚🔍 <i> Do your LLM even RAG bro? </i> 🤖💬</h2>""")
