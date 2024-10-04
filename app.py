@@ -2,13 +2,23 @@ import streamlit as st
 import os
 import dotenv
 import uuid
-import sqlite3
 
 # check if it's linux so it works on Streamlit Cloud
+import os
+import sys
+
 if os.name == 'posix':
-    __import__('pysqlite3')
-    import sys
-    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    try:
+        import pysqlite3
+        # Replace sqlite3 with pysqlite3 in the system modules
+        sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    except ImportError:
+        print("pysqlite3 module is not installed. Falling back to default sqlite3.")
+        import sqlite3
+else:
+    # For non-posix systems, import the default sqlite3 module
+    import sqlite3
+
 
 from langchain_openai import ChatOpenAI, AzureChatOpenAI
 from langchain_anthropic import ChatAnthropic
