@@ -152,6 +152,9 @@ else:
         #     key="model",
         # )
 
+        model = 'openai/gpt-4o-mini'
+        st.session_state.model = model
+
         cols0 = st.columns(2)
         with cols0[0]:
             is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
@@ -192,7 +195,7 @@ else:
 
     llm_stream = ChatOpenAI(
             api_key=openai_api_key,
-            model_name='openai/gpt-4o-mini',
+            model_name=st.session_state.model.split("/")[-1],
             temperature=0.3,
             streaming=True,
         )
