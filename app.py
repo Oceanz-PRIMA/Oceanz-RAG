@@ -6,6 +6,7 @@ import uuid
 # check if it's linux so it works on Streamlit Cloud
 import os
 import sys
+from PIL import Image
 
 if os.name == 'posix':
     try:
@@ -82,24 +83,41 @@ if "messages" not in st.session_state:
 
 # --- Side Bar LLM API Tokens ---
 with st.sidebar:
-    if "AZ_OPENAI_API_KEY" not in os.environ:
-        default_openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
-        with st.popover("🔐 OpenAI"):
-            openai_api_key = st.text_input(
-                "Introduce your OpenAI API Key (https://platform.openai.com/)", 
-                value=default_openai_api_key, 
-                type="password",
-                key="openai_api_key",
-            )
+    # Load the image
+    image = Image.open('logo.png')
 
-        default_anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
-        with st.popover("🔐 Anthropic"):
-            anthropic_api_key = st.text_input(
-                "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
-                value=default_anthropic_api_key, 
-                type="password",
-                key="anthropic_api_key",
-            )
+    # Get the original dimensions of the image
+    width, height = image.size
+
+    # Set a custom height and adjust the width to maintain the aspect ratio
+    new_height = 200
+    new_width = int((new_height / height) * width)
+
+    # Resize the image
+    resized_image = image.resize((new_width, new_height))
+
+    # Display the resized image
+    st.image(resized_image, caption='Oceanz')
+
+    if "AZ_OPENAI_API_KEY" not in os.environ:
+        openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
+        st.session_state.openai_api_key = openai_api_key
+        # with st.popover("🔐 OpenAI"):
+        #     openai_api_key = st.text_input(
+        #         "Introduce your OpenAI API Key (https://platform.openai.com/)", 
+        #         value=default_openai_api_key, 
+        #         type="password",
+        #         key="openai_api_key",
+        #     )
+
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
+        # with st.popover("🔐 Anthropic"):
+        #     anthropic_api_key = st.text_input(
+        #         "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
+        #         value=default_anthropic_api_key, 
+        #         type="password",
+        #         key="anthropic_api_key",
+        #     )
     else:
         openai_api_key, anthropic_api_key = None, None
         st.session_state.openai_api_key = None
@@ -128,11 +146,11 @@ else:
             elif "azure-openai" in model:
                 models.append(model)
 
-        st.selectbox(
-            "🤖 Select a Model", 
-            options=models,
-            key="model",
-        )
+        # st.selectbox(
+        #     "🤖 Select a Model", 
+        #     options=models,
+        #     key="model",
+        # )
 
         cols0 = st.columns(2)
         with cols0[0]:
@@ -171,31 +189,39 @@ else:
 
     
     # Main chat app
-    model_provider = st.session_state.model.split("/")[0]
-    if model_provider == "openai":
-        llm_stream = ChatOpenAI(
+
+    llm_stream = ChatOpenAI(
             api_key=openai_api_key,
-            model_name=st.session_state.model.split("/")[-1],
+            model_name='openai',
             temperature=0.3,
             streaming=True,
         )
-    elif model_provider == "anthropic":
-        llm_stream = ChatAnthropic(
-            api_key=anthropic_api_key,
-            model=st.session_state.model.split("/")[-1],
-            temperature=0.3,
-            streaming=True,
-        )
-    elif model_provider == "azure-openai":
-        llm_stream = AzureChatOpenAI(
-            azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
-            openai_api_version="2024-02-15-preview",
-            model_name=st.session_state.model.split("/")[-1],
-            openai_api_key=os.getenv("AZ_OPENAI_API_KEY"),
-            openai_api_type="azure",
-            temperature=0.3,
-            streaming=True,
-        )
+    
+    # model_provider = st.session_state.model.split("/")[0]
+    # if model_provider == "openai":
+    #     llm_stream = ChatOpenAI(
+    #         api_key=openai_api_key,
+    #         model_name=st.session_state.model.split("/")[-1],
+    #         temperature=0.3,
+    #         streaming=True,
+    #     )
+    # elif model_provider == "anthropic":
+    #     llm_stream = ChatAnthropic(
+    #         api_key=anthropic_api_key,
+    #         model=st.session_state.model.split("/")[-1],
+    #         temperature=0.3,
+    #         streaming=True,
+    #     )
+    # elif model_provider == "azure-openai":
+    #     llm_stream = AzureChatOpenAI(
+    #         azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
+    #         openai_api_version="2024-02-15-preview",
+    #         model_name=st.session_state.model.split("/")[-1],
+    #         openai_api_key=os.getenv("AZ_OPENAI_API_KEY"),
+    #         openai_api_type="azure",
+    #         temperature=0.3,
+    #         streaming=True,
+    #     )
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
