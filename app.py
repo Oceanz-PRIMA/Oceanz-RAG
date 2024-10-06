@@ -192,7 +192,7 @@ else:
 
     llm_stream = ChatOpenAI(
             api_key=openai_api_key,
-            model_name='openai',
+            model_name='openai/gpt-4o-mini',
             temperature=0.3,
             streaming=True,
         )
