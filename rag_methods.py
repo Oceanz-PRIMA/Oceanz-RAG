@@ -22,6 +22,11 @@ dotenv.load_dotenv()
 os.environ["USER_AGENT"] = "myagent"
 DB_DOCS_LIMIT = 10
 
+# Set file size limit (1 MB = 1 * 1024 * 1024 bytes)
+MAX_FILE_SIZE_MB = 1
+MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024
+
+
 # Function to stream the response of the LLM 
 def stream_llm_response(llm_stream, messages):
     response_message = ""
@@ -36,10 +41,16 @@ def stream_llm_response(llm_stream, messages):
 # --- Indexing Phase ---
 
 def load_doc_to_db():
-    # Use loader according to doc type
+    # Ensure the session state exists
     if "rag_docs" in st.session_state and st.session_state.rag_docs:
-        docs = [] 
+        docs = []
         for doc_file in st.session_state.rag_docs:
+            # File size validation
+            if doc_file.size > MAX_FILE_SIZE_BYTES:
+                st.error(f"{doc_file.name} exceeds the maximum file size of {MAX_FILE_SIZE_MB} MB.")
+                continue  # Skip this file
+
+            # Check if already loaded
             if doc_file.name not in st.session_state.rag_sources:
                 if len(st.session_state.rag_sources) < DB_DOCS_LIMIT:
                     os.makedirs("source_files", exist_ok=True)
@@ -48,6 +59,7 @@ def load_doc_to_db():
                         file.write(doc_file.read())
 
                     try:
+                        # Handle document types
                         if doc_file.type == "application/pdf":
                             loader = PyPDFLoader(file_path)
                         elif doc_file.name.endswith(".docx"):
@@ -58,6 +70,7 @@ def load_doc_to_db():
                             st.warning(f"Document type {doc_file.type} not supported.")
                             continue
 
+                        # Load and extend docs
                         docs.extend(loader.load())
                         st.session_state.rag_sources.append(doc_file.name)
 
@@ -69,11 +82,12 @@ def load_doc_to_db():
                         os.remove(file_path)
 
                 else:
-                    st.error(F"Maximum number of documents reached ({DB_DOCS_LIMIT}).")
-
+                    st.error(f"Maximum number of documents reached ({DB_DOCS_LIMIT}).")
+        
+        # Process loaded docs
         if docs:
             _split_and_load_docs(docs)
-            st.toast(f"Document *{str([doc_file.name for doc_file in st.session_state.rag_docs])[1:-1]}* loaded successfully.", icon="✅")
+            st.toast(f"Documents {', '.join([doc_file.name for doc_file in st.session_state.rag_docs])} loaded successfully.", icon="✅")
 
 
 def load_url_to_db():
