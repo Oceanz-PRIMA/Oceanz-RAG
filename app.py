@@ -7,6 +7,7 @@ import uuid
 import os
 import sys
 from PIL import Image
+from langchain_core.rate_limiters import InMemoryRateLimiter
 
 if os.name == 'posix':
     try:
@@ -33,6 +34,13 @@ from rag_methods import (
 )
 
 dotenv.load_dotenv()
+
+# Define the maximum number of queries allowed per session
+MAX_QUERIES = 5
+
+# Set up session state to track query count
+if 'query_count' not in st.session_state:
+    st.session_state.query_count = 0
 
 if "AZ_OPENAI_API_KEY" not in os.environ:
     MODELS = [
@@ -137,20 +145,6 @@ else:
     # Sidebar
     with st.sidebar:
         st.divider()
-        models = []
-        for model in MODELS:
-            if "openai" in model and not missing_openai:
-                models.append(model)
-            elif "anthropic" in model and not missing_anthropic:
-                models.append(model)
-            elif "azure-openai" in model:
-                models.append(model)
-
-        # st.selectbox(
-        #     "🤖 Select a Model", 
-        #     options=models,
-        #     key="model",
-        # )
 
         model = 'openai/gpt-4o-mini'
         st.session_state.model = model
@@ -193,38 +187,20 @@ else:
     
     # Main chat app
 
+    rate_limiter = InMemoryRateLimiter(
+    requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
+    check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
+    max_bucket_size=10,  # Controls the maximum burst size.
+)
+
     llm_stream = ChatOpenAI(
             api_key=openai_api_key,
             model_name=st.session_state.model.split("/")[-1],
             temperature=0.3,
+            max_tokens=None,
             streaming=True,
+            rate_limiter=rate_limiter,
         )
-    
-    # model_provider = st.session_state.model.split("/")[0]
-    # if model_provider == "openai":
-    #     llm_stream = ChatOpenAI(
-    #         api_key=openai_api_key,
-    #         model_name=st.session_state.model.split("/")[-1],
-    #         temperature=0.3,
-    #         streaming=True,
-    #     )
-    # elif model_provider == "anthropic":
-    #     llm_stream = ChatAnthropic(
-    #         api_key=anthropic_api_key,
-    #         model=st.session_state.model.split("/")[-1],
-    #         temperature=0.3,
-    #         streaming=True,
-    #     )
-    # elif model_provider == "azure-openai":
-    #     llm_stream = AzureChatOpenAI(
-    #         azure_endpoint=os.getenv("AZ_OPENAI_ENDPOINT"),
-    #         openai_api_version="2024-02-15-preview",
-    #         model_name=st.session_state.model.split("/")[-1],
-    #         openai_api_key=os.getenv("AZ_OPENAI_API_KEY"),
-    #         openai_api_type="azure",
-    #         temperature=0.3,
-    #         streaming=True,
-    #     )
 
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -241,16 +217,14 @@ else:
 
             messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
 
-            if not st.session_state.use_rag:
-                st.write_stream(stream_llm_response(llm_stream, messages))
+            if st.session_state.query_count < MAX_QUERIES:
+                st.session_state.query_count += 1
+                if not st.session_state.use_rag:
+                    st.write_stream(stream_llm_response(llm_stream, messages))
+                else:
+                    st.write_stream(stream_llm_rag_response(llm_stream, messages))
             else:
-                st.write_stream(stream_llm_rag_response(llm_stream, messages))
-
-
-# with st.sidebar:
-#     st.divider()
-#     st.video("https://youtu.be/abMwFViFFhI")
-#     st.write("📋[Medium Blog](https://medium.com/@enricdomingo/program-a-rag-llm-chat-app-with-langchain-streamlit-o1-gtp-4o-and-claude-3-5-529f0f164a5e)")
-#     st.write("📋[GitHub Repo](https://github.com/enricd/rag_llm_app)")
+                st.error("You have reached the maximum number of queries for this session.")
+            
 
     
