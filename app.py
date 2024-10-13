@@ -8,6 +8,7 @@ import os
 import sys
 from PIL import Image
 from langchain_core.rate_limiters import InMemoryRateLimiter
+import streamlit.components.v1 as components
 
 if os.name == 'posix':
     try:
@@ -59,6 +60,12 @@ st.set_page_config(
     layout="centered", 
     initial_sidebar_state="expanded"
 )
+
+# Google Analytics tracking code
+ga_script = """<!-- Google tag (gtag.js) --> <script async src="https://www.googletagmanager.com/gtag/js?id=G-70JVMS7Y8F"></script> <script> window.dataLayer = window.dataLayer || []; function gtag(){dataLayer.push(arguments);} gtag('js', new Date()); gtag('config', 'G-70JVMS7Y8F'); </script>"""
+
+# Inject Google Analytics script into the Streamlit app
+components.html(ga_script)
 
 # Add custom CSS to hide the 'More options' menu
 hide_menu_style = """
