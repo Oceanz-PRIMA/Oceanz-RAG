@@ -34,6 +34,8 @@ from rag_methods import (
     stream_llm_rag_response,
 )
 
+# from streamlit_cookies_manager import EncryptedCookieManager
+
 dotenv.load_dotenv()
 
 # Define the maximum number of queries allowed per session
@@ -81,157 +83,229 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 # --- Header ---
 # st.html("""<h2 style="text-align: center;">📚🔍 <i> Do your LLM even RAG bro? </i> 🤖💬</h2>""")
 
+# Custom CSS for floating form and background overlay
+modal_css = """
+<style>
+/* The overlay */
+.overlay {
+    position: fixed; 
+    display: block; 
+    width: 100%;
+    height: 100%; 
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5); /* Black background with opacity */
+    z-index: 1; /* Specify a stack order */
+    cursor: pointer;
+}
 
-# --- Initial Setup ---
-if "session_id" not in st.session_state:
-    st.session_state.session_id = str(uuid.uuid4())
+/* The modal (floating form) */
+.modal-content {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    z-index: 2;
+    width: 400px; /* Set a specific width */
+}
+</style>
+"""
 
-if "rag_sources" not in st.session_state:
-    st.session_state.rag_sources = []
+# Inject CSS into the app
+components.html(modal_css, height=0)
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [
-        {"role": "user", "content": "Hello"},
-        {"role": "assistant", "content": "Hi there! How can I assist you today?"}
-]
+if 'form_submitted' not in st.session_state:
+    st.session_state['form_submitted'] = False
 
+if not st.session_state['form_submitted']:
+    # Overlay and modal form
+    with st.form(key='intake_form'):
+        st.markdown("<div class='overlay'></div>", unsafe_allow_html=True)  # Block the background
+        st.markdown("<div class='modal-content'>", unsafe_allow_html=True)  # Start modal content
 
-# --- Side Bar LLM API Tokens ---
-with st.sidebar:
-    # Load the image
-    image = Image.open('logo.png')
+        st.write("User Intake Form")
+        
+        # Input fields
+        name = st.text_input("Enter your name")
+        age = st.number_input("Enter your age", min_value=0, max_value=100)
+        gender = st.radio("Select your gender", ('Male', 'Female', 'Other'))
+        agree = st.checkbox("I agree to the terms and conditions")
 
-    # Get the original dimensions of the image
-    width, height = image.size
+        # Submit button
+        submit_button = st.form_submit_button(label='Submit')
 
-    # Set a custom height and adjust the width to maintain the aspect ratio
-    new_height = 200
-    new_width = int((new_height / height) * width)
+        st.markdown("</div>", unsafe_allow_html=True)  # End modal content
 
-    # Resize the image
-    resized_image = image.resize((new_width, new_height))
-
-    # Display the resized image
-    st.image(resized_image, caption='Oceanz')
-
-    if "AZ_OPENAI_API_KEY" not in os.environ:
-        openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
-        st.session_state.openai_api_key = openai_api_key
-        # with st.popover("🔐 OpenAI"):
-        #     openai_api_key = st.text_input(
-        #         "Introduce your OpenAI API Key (https://platform.openai.com/)", 
-        #         value=default_openai_api_key, 
-        #         type="password",
-        #         key="openai_api_key",
-        #     )
-
-        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
-        # with st.popover("🔐 Anthropic"):
-        #     anthropic_api_key = st.text_input(
-        #         "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
-        #         value=default_anthropic_api_key, 
-        #         type="password",
-        #         key="anthropic_api_key",
-        #     )
-    else:
-        openai_api_key, anthropic_api_key = None, None
-        st.session_state.openai_api_key = None
-        az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
-        st.session_state.az_openai_api_key = az_openai_api_key
-
-
-# --- Main Content ---
-# Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
-missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
-missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-if missing_openai and missing_anthropic and ("AZ_OPENAI_API_KEY" not in os.environ):
-    st.write("#")
-    st.warning("⬅️ Please introduce an API Key to continue...")
+    # Handle form submission
+    if submit_button:
+        st.write(f"Name: {name}")
+        st.write(f"Age: {age}")
+        st.write(f"Gender: {gender}")
+        if agree:
+            st.session_state['form_submitted'] = True
+        else:
+            st.write("You didn't agree to the terms and conditions.")
 
 else:
-    # Sidebar
+    # --- Initial Setup ---
+    if "session_id" not in st.session_state:
+        st.session_state.session_id = str(uuid.uuid4())
+
+    if "rag_sources" not in st.session_state:
+        st.session_state.rag_sources = []
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi there! How can I assist you today?"}
+    ]
+
+
+    # --- Side Bar LLM API Tokens ---
     with st.sidebar:
-        st.divider()
+        # Load the image
+        image = Image.open('logo.png')
 
-        model = 'openai/gpt-4o-mini'
-        st.session_state.model = model
+        # Get the original dimensions of the image
+        width, height = image.size
 
-        cols0 = st.columns(2)
-        with cols0[0]:
-            is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
-            st.toggle(
-                "Use RAG", 
-                value=is_vector_db_loaded, 
-                key="use_rag", 
-                disabled=not is_vector_db_loaded,
+        # Set a custom height and adjust the width to maintain the aspect ratio
+        new_height = 200
+        new_width = int((new_height / height) * width)
+
+        # Resize the image
+        resized_image = image.resize((new_width, new_height))
+
+        # Display the resized image
+        st.image(resized_image, caption='Oceanz')
+
+        if "AZ_OPENAI_API_KEY" not in os.environ:
+            openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
+            st.session_state.openai_api_key = openai_api_key
+            # with st.popover("🔐 OpenAI"):
+            #     openai_api_key = st.text_input(
+            #         "Introduce your OpenAI API Key (https://platform.openai.com/)", 
+            #         value=default_openai_api_key, 
+            #         type="password",
+            #         key="openai_api_key",
+            #     )
+
+            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
+            # with st.popover("🔐 Anthropic"):
+            #     anthropic_api_key = st.text_input(
+            #         "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
+            #         value=default_anthropic_api_key, 
+            #         type="password",
+            #         key="anthropic_api_key",
+            #     )
+        else:
+            openai_api_key, anthropic_api_key = None, None
+            st.session_state.openai_api_key = None
+            az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
+            st.session_state.az_openai_api_key = az_openai_api_key
+
+
+    # --- Main Content ---
+    # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
+    missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
+    missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
+    if missing_openai and missing_anthropic and ("AZ_OPENAI_API_KEY" not in os.environ):
+        st.write("#")
+        st.warning("⬅️ Please introduce an API Key to continue...")
+
+    else:
+        # Sidebar
+        with st.sidebar:
+            st.divider()
+
+            model = 'openai/gpt-4o-mini'
+            st.session_state.model = model
+
+            cols0 = st.columns(2)
+            with cols0[0]:
+                is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
+                st.toggle(
+                    "Use RAG", 
+                    value=is_vector_db_loaded, 
+                    key="use_rag", 
+                    disabled=not is_vector_db_loaded,
+                )
+
+            with cols0[1]:
+                st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
+
+            st.header("RAG Sources:")
+                
+            # File upload input for RAG with documents
+            st.file_uploader(
+                "📄 Upload a document", 
+                type=["pdf", "txt", "docx", "md"],
+                accept_multiple_files=True,
+                on_change=load_doc_to_db,
+                key="rag_docs",
             )
 
-        with cols0[1]:
-            st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
+            # URL input for RAG with websites
+            st.text_input(
+                "🌐 Introduce a URL", 
+                placeholder="https://example.com",
+                on_change=load_url_to_db,
+                key="rag_url",
+            )
 
-        st.header("RAG Sources:")
-            
-        # File upload input for RAG with documents
-        st.file_uploader(
-            "📄 Upload a document", 
-            type=["pdf", "txt", "docx", "md"],
-            accept_multiple_files=True,
-            on_change=load_doc_to_db,
-            key="rag_docs",
-        )
+            with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
+                st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
 
-        # URL input for RAG with websites
-        st.text_input(
-            "🌐 Introduce a URL", 
-            placeholder="https://example.com",
-            on_change=load_url_to_db,
-            key="rag_url",
-        )
+        
+        # Main chat app
 
-        with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
-            st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
+        rate_limiter = InMemoryRateLimiter(
+        requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
+        check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
+        max_bucket_size=10,  # Controls the maximum burst size.
+    )
 
-    
-    # Main chat app
+        llm_stream = ChatOpenAI(
+                api_key=openai_api_key,
+                model_name=st.session_state.model.split("/")[-1],
+                temperature=0.3,
+                max_tokens=None,
+                streaming=True,
+                rate_limiter=rate_limiter,
+            )
 
-    rate_limiter = InMemoryRateLimiter(
-    requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
-    check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
-    max_bucket_size=10,  # Controls the maximum burst size.
-)
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-    llm_stream = ChatOpenAI(
-            api_key=openai_api_key,
-            model_name=st.session_state.model.split("/")[-1],
-            temperature=0.3,
-            max_tokens=None,
-            streaming=True,
-            rate_limiter=rate_limiter,
-        )
+        if prompt := st.chat_input("Your message"):
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with st.chat_message("user"):
+                st.markdown(prompt)
 
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+            with st.chat_message("assistant"):
+                message_placeholder = st.empty()
+                full_response = ""
 
-    if prompt := st.chat_input("Your message"):
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.markdown(prompt)
+                messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
 
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            full_response = ""
-
-            messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
-
-            if st.session_state.query_count < MAX_QUERIES:
-                st.session_state.query_count += 1
-                if not st.session_state.use_rag:
-                    st.write_stream(stream_llm_response(llm_stream, messages))
+                if st.session_state.query_count < MAX_QUERIES:
+                    st.session_state.query_count += 1
+                    if not st.session_state.use_rag:
+                        st.write_stream(stream_llm_response(llm_stream, messages))
+                    else:
+                        st.write_stream(stream_llm_rag_response(llm_stream, messages))
                 else:
-                    st.write_stream(stream_llm_rag_response(llm_stream, messages))
-            else:
-                st.error("You have reached the maximum number of queries for this session.")
+                    st.error("You have reached the maximum number of queries for this session.")
+        
+
+
             
 
     
