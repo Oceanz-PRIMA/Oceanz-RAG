@@ -9,6 +9,7 @@ import sys
 from PIL import Image
 from langchain_core.rate_limiters import InMemoryRateLimiter
 import streamlit.components.v1 as components
+import requests
 
 if os.name == 'posix':
     try:
@@ -83,42 +84,31 @@ st.markdown(hide_menu_style, unsafe_allow_html=True)
 # --- Header ---
 # st.html("""<h2 style="text-align: center;">📚🔍 <i> Do your LLM even RAG bro? </i> 🤖💬</h2>""")
 
-# Custom CSS for floating form and background overlay
-modal_css = """
-<style>
-/* The overlay */
-.overlay {
-    position: fixed; 
-    display: block; 
-    width: 100%;
-    height: 100%; 
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: rgba(0, 0, 0, 0.5); /* Black background with opacity */
-    z-index: 1; /* Specify a stack order */
-    cursor: pointer;
-}
+# Custom CSS to center the form on the screen
+st.markdown(
+    """
+    <style>
+    .centered-form {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Align the form from the top */
+    }
+    .stForm {
+        background-color: #f9f9f9;
+        padding: 40px;
+        border-radius: 10px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        margin-top: -250px; /* Modify this value to adjust the top margin of the form */
+        z-index: 999;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
 
-/* The modal (floating form) */
-.modal-content {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background-color: white;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    z-index: 2;
-    width: 400px; /* Set a specific width */
-}
-</style>
-"""
 
-# Inject CSS into the app
-components.html(modal_css, height=0)
+# Center the form
+st.markdown('<div class="centered-form">', unsafe_allow_html=True)
 
 if 'form_submitted' not in st.session_state:
     st.session_state['form_submitted'] = False
@@ -126,31 +116,98 @@ if 'form_submitted' not in st.session_state:
 if not st.session_state['form_submitted']:
     # Overlay and modal form
     with st.form(key='intake_form'):
-        st.markdown("<div class='overlay'></div>", unsafe_allow_html=True)  # Block the background
-        st.markdown("<div class='modal-content'>", unsafe_allow_html=True)  # Start modal content
 
-        st.write("User Intake Form")
+        st.write("Oceanz Survey")
         
-        # Input fields
-        name = st.text_input("Enter your name")
-        age = st.number_input("Enter your age", min_value=0, max_value=100)
-        gender = st.radio("Select your gender", ('Male', 'Female', 'Other'))
-        agree = st.checkbox("I agree to the terms and conditions")
+       # Email Address
+        email = st.text_input("Email Address", placeholder="Enter your email")
+
+        # Phone Number (Optional)
+        phone = st.text_input("Phone Number (Optional)", placeholder="Enter your phone number")
+
+        # Company Name
+        company = st.text_input("Company Name", placeholder="Enter your company name")
+
+        # Primary Role (Single Selection)
+        role_options = [
+            "Developer/Engineer",
+            "Data Scientist/Analyst",
+            "Product Manager",
+            "Marketing Professional",
+            "Researcher",
+            "Other"
+        ]
+        role = st.selectbox("What is your primary role?", options=role_options)
+
+        # If 'Other' is selected, show a text input
+        if role == "Other":
+            other_role = st.text_input("Please specify your role", placeholder="Describe your role")
+
+        # Job Title
+        job_title = st.text_input("Job Title", placeholder="Enter your job title")
+
+        # How did you hear about Oceanz AI? (Single Selection)
+        discovery_options = [
+            "Social Media/LinkedIn",
+            "Referral",
+            "Online Search",
+            "Webinar/Conference",
+            "Other"
+        ]
+        discovery = st.selectbox("How did you hear about our Oceanz AI?", options=discovery_options)
+
+        # If 'Other' is selected, show a text input
+        if discovery == "Other":
+            other_discovery = st.text_input("Please specify how you heard about us", placeholder="Describe how you heard about us")
+
+        # Primary Goals for using Oceanz AI (Multiple Selection)
+        goal_options = [
+            "RAG",
+            "Content Generation",
+            "Data Analysis",
+            "Automation of Tasks",
+            "Other"
+        ]
+        goals = st.multiselect("What are your primary goals for using Oceanz AI? (Select all that apply)", options=goal_options)
+
+        # If 'Other' is selected, show a text input
+        if "Other" in goals:
+            other_goal = st.text_input("Please specify your other goals", placeholder="Describe your other goals")
 
         # Submit button
         submit_button = st.form_submit_button(label='Submit')
 
-        st.markdown("</div>", unsafe_allow_html=True)  # End modal content
+        # Close the centered div
+        st.markdown('</div>', unsafe_allow_html=True)
 
-    # Handle form submission
-    if submit_button:
-        st.write(f"Name: {name}")
-        st.write(f"Age: {age}")
-        st.write(f"Gender: {gender}")
-        if agree:
-            st.session_state['form_submitted'] = True
-        else:
-            st.write("You didn't agree to the terms and conditions.")
+        
+        # After submission, send the data to Netlify
+        if submit_button:
+            # Prepare the data for submission
+            form_data = {
+                "form-name": "oceanz-rag-intake",
+                "email": email,
+                "phone": phone,
+                "company": company,
+                "role": role if role != 'Other' else other_role,
+                "job_title": job_title,
+                "discovery": discovery if discovery != 'Other' else other_discovery,
+                "goals": ', '.join(goals) if 'Other' not in goals else ', '.join(goals) + f' (Other: {other_goal})'
+            }
+
+            # Netlify form submission URL (replace with your real Netlify form endpoint)
+            netlify_form_endpoint = "https://oceanz-genai.netlify.app"
+
+            try:
+                st.session_state['form_submitted'] = True
+                # Send the POST request to Netlify
+                response = requests.post(netlify_form_endpoint, data=form_data, headers={"Content-Type": "application/x-www-form-urlencoded"})
+                response.raise_for_status()
+
+                # Success message
+                st.success("Form submitted successfully!")
+            except requests.exceptions.RequestException as e:
+                st.error(f"Error submitting the form: {e}")
 
 else:
     # --- Initial Setup ---
