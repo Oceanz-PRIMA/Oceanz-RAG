@@ -107,84 +107,71 @@ st.markdown(
 )
 
 
-# Center the form
-st.markdown('<div class="centered-form">', unsafe_allow_html=True)
-
 if 'form_submitted' not in st.session_state:
     st.session_state['form_submitted'] = False
 
-if not st.session_state['form_submitted']:
-    # Overlay and modal form
-    with st.form(key='intake_form'):
-
-        st.write("Oceanz Survey")
+@st.dialog("Oceanz Survey")
+def survey():
         
-       # Email Address
-        email = st.text_input("Email Address", placeholder="Enter your email")
+    # Email Address
+    email = st.text_input("Email Address", placeholder="Enter your email")
 
-        # Phone Number (Optional)
-        phone = st.text_input("Phone Number (Optional)", placeholder="Enter your phone number")
+    # Phone Number (Optional)
+    phone = st.text_input("Phone Number (Optional)", placeholder="Enter your phone number")
 
-        # Company Name
-        company = st.text_input("Company Name", placeholder="Enter your company name")
+    # Company Name
+    company = st.text_input("Company Name", placeholder="Enter your company name")
 
-        # Primary Role (Single Selection)
-        role_options = [
-            "Developer/Engineer",
-            "Data Scientist/Analyst",
-            "Product Manager",
-            "Marketing Professional",
-            "Researcher",
-            "Other"
-        ]
-        role = st.selectbox("What is your primary role?", options=role_options)
+    # Primary Role (Single Selection)
+    role_options = [
+        "Developer/Engineer",
+        "Data Scientist/Analyst",
+        "Product Manager",
+        "Marketing Professional",
+        "Researcher",
+        "Other"
+    ]
+    role = st.selectbox("What is your primary role?", options=role_options)
 
-        # If 'Other' is selected, show a text input
-        if role == "Other":
-            other_role = st.text_input("Please specify your role", placeholder="Describe your role")
+    # If 'Other' is selected, show a text input
+    if role == "Other":
+        other_role = st.text_input("Please specify your role", placeholder="Describe your role")
 
-        # Job Title
-        job_title = st.text_input("Job Title", placeholder="Enter your job title")
+    # Job Title
+    job_title = st.text_input("Job Title", placeholder="Enter your job title")
 
-        # How did you hear about Oceanz AI? (Single Selection)
-        discovery_options = [
-            "Social Media/LinkedIn",
-            "Referral",
-            "Online Search",
-            "Webinar/Conference",
-            "Other"
-        ]
-        discovery = st.selectbox("How did you hear about our Oceanz AI?", options=discovery_options)
+    # How did you hear about Oceanz AI? (Single Selection)
+    discovery_options = [
+        "Social Media/LinkedIn",
+        "Referral",
+        "Online Search",
+        "Webinar/Conference",
+        "Other"
+    ]
+    discovery = st.selectbox("How did you hear about our Oceanz AI?", options=discovery_options)
 
-        # If 'Other' is selected, show a text input
-        if discovery == "Other":
-            other_discovery = st.text_input("Please specify how you heard about us", placeholder="Describe how you heard about us")
+    # If 'Other' is selected, show a text input
+    if discovery == "Other":
+        other_discovery = st.text_input("Please specify how you heard about us", placeholder="Describe how you heard about us")
 
-        # Primary Goals for using Oceanz AI (Multiple Selection)
-        goal_options = [
-            "RAG",
-            "Content Generation",
-            "Data Analysis",
-            "Automation of Tasks",
-            "Other"
-        ]
-        goals = st.multiselect("What are your primary goals for using Oceanz AI? (Select all that apply)", options=goal_options)
+    # Primary Goals for using Oceanz AI (Multiple Selection)
+    goal_options = [
+        "RAG",
+        "Content Generation",
+        "Data Analysis",
+        "Automation of Tasks",
+        "Other"
+    ]
+    goals = st.multiselect("What are your primary goals for using Oceanz AI? (Select all that apply)", options=goal_options)
 
-        # If 'Other' is selected, show a text input
-        if "Other" in goals:
-            other_goal = st.text_input("Please specify your other goals", placeholder="Describe your other goals")
+    # If 'Other' is selected, show a text input
+    if "Other" in goals:
+        other_goal = st.text_input("Please specify your other goals", placeholder="Describe your other goals")
 
-        # Submit button
-        submit_button = st.form_submit_button(label='Submit')
-
-        # Close the centered div
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        
-        # After submission, send the data to Netlify
-        if submit_button:
-            # Prepare the data for submission
-            form_data = {
+    if st.button("Submit"):
+        st.session_state['form_submitted'] = True
+        st.session_state.vote = {"item": item, "reason": "reason"}
+        form_data = {
                 "form-name": "oceanz-rag-intake",
                 "email": email,
                 "phone": phone,
@@ -195,171 +182,175 @@ if not st.session_state['form_submitted']:
                 "goals": ', '.join(goals) if 'Other' not in goals else ', '.join(goals) + f' (Other: {other_goal})'
             }
 
-            # Netlify form submission URL (replace with your real Netlify form endpoint)
-            netlify_form_endpoint = "https://oceanz-genai.netlify.app"
+        # Netlify form submission URL (replace with your real Netlify form endpoint)
+        netlify_form_endpoint = "https://oceanz-genai.netlify.app"
 
-            try:
-                st.session_state['form_submitted'] = True
-                # Send the POST request to Netlify
-                response = requests.post(netlify_form_endpoint, data=form_data, headers={"Content-Type": "application/x-www-form-urlencoded"})
-                response.raise_for_status()
+        try:
+            st.session_state['form_submitted'] = True
+            # Send the POST request to Netlify
+            response = requests.post(netlify_form_endpoint, data=form_data, headers={"Content-Type": "application/x-www-form-urlencoded"})
+            response.raise_for_status()
 
-                # Success message
-                st.success("Form submitted successfully!")
-            except requests.exceptions.RequestException as e:
-                st.error(f"Error submitting the form: {e}")
+            # Success message
+            st.success("Form submitted successfully!")
+        except requests.exceptions.RequestException as e:
+            st.error(f"Error submitting the form: {e}")
+        st.rerun()
+
+
+if not st.session_state['form_submitted']:
+    survey()
+
+# --- Initial Setup ---
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())
+
+if "rag_sources" not in st.session_state:
+    st.session_state.rag_sources = []
+
+if "messages" not in st.session_state:
+    st.session_state.messages = [
+        {"role": "user", "content": "Hello"},
+        {"role": "assistant", "content": "Hi there! How can I assist you today?"}
+]
+
+
+# --- Side Bar LLM API Tokens ---
+with st.sidebar:
+    # Load the image
+    image = Image.open('logo.png')
+
+    # Get the original dimensions of the image
+    width, height = image.size
+
+    # Set a custom height and adjust the width to maintain the aspect ratio
+    new_height = 200
+    new_width = int((new_height / height) * width)
+
+    # Resize the image
+    resized_image = image.resize((new_width, new_height))
+
+    # Display the resized image
+    st.image(resized_image, caption='Oceanz')
+
+    if "AZ_OPENAI_API_KEY" not in os.environ:
+        openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
+        st.session_state.openai_api_key = openai_api_key
+        # with st.popover("🔐 OpenAI"):
+        #     openai_api_key = st.text_input(
+        #         "Introduce your OpenAI API Key (https://platform.openai.com/)", 
+        #         value=default_openai_api_key, 
+        #         type="password",
+        #         key="openai_api_key",
+        #     )
+
+        anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
+        # with st.popover("🔐 Anthropic"):
+        #     anthropic_api_key = st.text_input(
+        #         "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
+        #         value=default_anthropic_api_key, 
+        #         type="password",
+        #         key="anthropic_api_key",
+        #     )
+    else:
+        openai_api_key, anthropic_api_key = None, None
+        st.session_state.openai_api_key = None
+        az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
+        st.session_state.az_openai_api_key = az_openai_api_key
+
+
+# --- Main Content ---
+# Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
+missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
+missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
+if missing_openai and missing_anthropic and ("AZ_OPENAI_API_KEY" not in os.environ):
+    st.write("#")
+    st.warning("⬅️ Please introduce an API Key to continue...")
 
 else:
-    # --- Initial Setup ---
-    if "session_id" not in st.session_state:
-        st.session_state.session_id = str(uuid.uuid4())
-
-    if "rag_sources" not in st.session_state:
-        st.session_state.rag_sources = []
-
-    if "messages" not in st.session_state:
-        st.session_state.messages = [
-            {"role": "user", "content": "Hello"},
-            {"role": "assistant", "content": "Hi there! How can I assist you today?"}
-    ]
-
-
-    # --- Side Bar LLM API Tokens ---
+    # Sidebar
     with st.sidebar:
-        # Load the image
-        image = Image.open('logo.png')
+        st.divider()
 
-        # Get the original dimensions of the image
-        width, height = image.size
+        model = 'openai/gpt-4o-mini'
+        st.session_state.model = model
 
-        # Set a custom height and adjust the width to maintain the aspect ratio
-        new_height = 200
-        new_width = int((new_height / height) * width)
-
-        # Resize the image
-        resized_image = image.resize((new_width, new_height))
-
-        # Display the resized image
-        st.image(resized_image, caption='Oceanz')
-
-        if "AZ_OPENAI_API_KEY" not in os.environ:
-            openai_api_key = os.getenv("OPENAI_API_KEY") if os.getenv("OPENAI_API_KEY") is not None else ""  # only for development environment, otherwise it should return None
-            st.session_state.openai_api_key = openai_api_key
-            # with st.popover("🔐 OpenAI"):
-            #     openai_api_key = st.text_input(
-            #         "Introduce your OpenAI API Key (https://platform.openai.com/)", 
-            #         value=default_openai_api_key, 
-            #         type="password",
-            #         key="openai_api_key",
-            #     )
-
-            anthropic_api_key = os.getenv("ANTHROPIC_API_KEY") if os.getenv("ANTHROPIC_API_KEY") is not None else ""
-            # with st.popover("🔐 Anthropic"):
-            #     anthropic_api_key = st.text_input(
-            #         "Introduce your Anthropic API Key (https://console.anthropic.com/)", 
-            #         value=default_anthropic_api_key, 
-            #         type="password",
-            #         key="anthropic_api_key",
-            #     )
-        else:
-            openai_api_key, anthropic_api_key = None, None
-            st.session_state.openai_api_key = None
-            az_openai_api_key = os.getenv("AZ_OPENAI_API_KEY")
-            st.session_state.az_openai_api_key = az_openai_api_key
-
-
-    # --- Main Content ---
-    # Checking if the user has introduced the OpenAI API Key, if not, a warning is displayed
-    missing_openai = openai_api_key == "" or openai_api_key is None or "sk-" not in openai_api_key
-    missing_anthropic = anthropic_api_key == "" or anthropic_api_key is None
-    if missing_openai and missing_anthropic and ("AZ_OPENAI_API_KEY" not in os.environ):
-        st.write("#")
-        st.warning("⬅️ Please introduce an API Key to continue...")
-
-    else:
-        # Sidebar
-        with st.sidebar:
-            st.divider()
-
-            model = 'openai/gpt-4o-mini'
-            st.session_state.model = model
-
-            cols0 = st.columns(2)
-            with cols0[0]:
-                is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
-                st.toggle(
-                    "Use RAG", 
-                    value=is_vector_db_loaded, 
-                    key="use_rag", 
-                    disabled=not is_vector_db_loaded,
-                )
-
-            with cols0[1]:
-                st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
-
-            st.header("RAG Sources:")
-                
-            # File upload input for RAG with documents
-            st.file_uploader(
-                "📄 Upload a document", 
-                type=["pdf", "txt", "docx", "md"],
-                accept_multiple_files=True,
-                on_change=load_doc_to_db,
-                key="rag_docs",
+        cols0 = st.columns(2)
+        with cols0[0]:
+            is_vector_db_loaded = ("vector_db" in st.session_state and st.session_state.vector_db is not None)
+            st.toggle(
+                "Use RAG", 
+                value=is_vector_db_loaded, 
+                key="use_rag", 
+                disabled=not is_vector_db_loaded,
             )
 
-            # URL input for RAG with websites
-            st.text_input(
-                "🌐 Introduce a URL", 
-                placeholder="https://example.com",
-                on_change=load_url_to_db,
-                key="rag_url",
-            )
+        with cols0[1]:
+            st.button("Clear Chat", on_click=lambda: st.session_state.messages.clear(), type="primary")
 
-            with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
-                st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
+        st.header("RAG Sources:")
+            
+        # File upload input for RAG with documents
+        st.file_uploader(
+            "📄 Upload a document", 
+            type=["pdf", "txt", "docx", "md"],
+            accept_multiple_files=True,
+            on_change=load_doc_to_db,
+            key="rag_docs",
+        )
 
-        
-        # Main chat app
+        # URL input for RAG with websites
+        st.text_input(
+            "🌐 Introduce a URL", 
+            placeholder="https://example.com",
+            on_change=load_url_to_db,
+            key="rag_url",
+        )
 
-        rate_limiter = InMemoryRateLimiter(
-        requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
-        check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
-        max_bucket_size=10,  # Controls the maximum burst size.
-    )
+        with st.expander(f"📚 Documents in DB ({0 if not is_vector_db_loaded else len(st.session_state.rag_sources)})"):
+            st.write([] if not is_vector_db_loaded else [source for source in st.session_state.rag_sources])
 
-        llm_stream = ChatOpenAI(
-                api_key=openai_api_key,
-                model_name=st.session_state.model.split("/")[-1],
-                temperature=0.3,
-                max_tokens=None,
-                streaming=True,
-                rate_limiter=rate_limiter,
-            )
+    
+    # Main chat app
 
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+    rate_limiter = InMemoryRateLimiter(
+    requests_per_second=0.1,  # <-- Can only make a request once every 10 seconds!!
+    check_every_n_seconds=0.1,  # Wake up every 100 ms to check whether allowed to make a request,
+    max_bucket_size=10,  # Controls the maximum burst size.
+)
 
-        if prompt := st.chat_input("Your message"):
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            with st.chat_message("user"):
-                st.markdown(prompt)
+    llm_stream = ChatOpenAI(
+            api_key=openai_api_key,
+            model_name=st.session_state.model.split("/")[-1],
+            temperature=0.3,
+            max_tokens=None,
+            streaming=True,
+            rate_limiter=rate_limiter,
+        )
 
-            with st.chat_message("assistant"):
-                message_placeholder = st.empty()
-                full_response = ""
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-                messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
+    if prompt := st.chat_input("Your message"):
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-                if st.session_state.query_count < MAX_QUERIES:
-                    st.session_state.query_count += 1
-                    if not st.session_state.use_rag:
-                        st.write_stream(stream_llm_response(llm_stream, messages))
-                    else:
-                        st.write_stream(stream_llm_rag_response(llm_stream, messages))
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            full_response = ""
+
+            messages = [HumanMessage(content=m["content"]) if m["role"] == "user" else AIMessage(content=m["content"]) for m in st.session_state.messages]
+
+            if st.session_state.query_count < MAX_QUERIES:
+                st.session_state.query_count += 1
+                if not st.session_state.use_rag:
+                    st.write_stream(stream_llm_response(llm_stream, messages))
                 else:
-                    st.error("You have reached the maximum number of queries for this session.")
+                    st.write_stream(stream_llm_rag_response(llm_stream, messages))
+            else:
+                st.error("You have reached the maximum number of queries for this session.")
         
 
 
